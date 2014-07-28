@@ -158,6 +158,23 @@ NSString *const FBSessionStateChangedNotification = @"com.catloafsoft:FBSessionS
     return self;
 }
 
+- (id)initWithClientToken:(NSString *)token namespace:(NSString *)ns delegate:(id<CLSFBUtilityDelegate>)delegate
+{
+    self = [super init];
+    if (self) {
+        _fetchUserInfo = YES;
+        _namespace = [ns copy];
+        _appID = [FBSettings defaultAppID];
+        [FBSettings setClientToken:token];
+        _appSuffix = nil;
+        _delegate = delegate;
+        _achievements = [[NSMutableSet alloc] init];
+        [self login:YES andThen:nil];
+    }
+    return self;
+}
+
+
 - (BOOL) publishTimeline {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"facebook_timeline"];
 }
@@ -316,7 +333,7 @@ NSString *const FBSessionStateChangedNotification = @"com.catloafsoft:FBSessionS
     _afterLogin = [handler copy];
     FBSession *session = [[FBSession alloc] initWithAppID:_appID
                                               permissions:perms
-                                          defaultAudience:FBSessionDefaultAudienceEveryone
+                                          defaultAudience:FBSessionDefaultAudienceFriends
                                           urlSchemeSuffix:_appSuffix
                                        tokenCacheStrategy:nil];
     [FBSession setActiveSession:session];
@@ -409,7 +426,7 @@ NSString *const FBSessionStateChangedNotification = @"com.catloafsoft:FBSessionS
 #endif
             @try {
                 [FBSession.activeSession requestNewPublishPermissions:@[permission]
-                                                      defaultAudience:FBSessionDefaultAudienceEveryone
+                                                      defaultAudience:FBSessionDefaultAudienceFriends
                                                     completionHandler:^(FBSession *session, NSError *error) {
                                                         if (error) {
                                                             [self handleRequestPermissionError:error];
@@ -438,7 +455,7 @@ NSString *const FBSessionStateChangedNotification = @"com.catloafsoft:FBSessionS
                       properties:(NSDictionary *)props
                 expandProperties:(BOOL)expand
                           appURL:(NSString *)appURL
-                       imagePath:(NSString *)imgPath
+                       image:(UIImage *)image
                         imageURL:(NSString *)img
                        imageLink:(NSString *)imgURL
                             from:(UIViewController *)vc
@@ -451,7 +468,7 @@ NSString *const FBSessionStateChangedNotification = @"com.catloafsoft:FBSessionS
                                                              name:name
                                                        properties:props
                                                            appURL:appURL
-                                                        imagePath:imgPath
+                                                            image:image
                                                          imageURL:img
                                                         imageLink:imgURL];
         _feedDialog.expandProperties = expand;

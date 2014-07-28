@@ -12,19 +12,20 @@
 @implementation FBFeedPublish {
     CLSFBUtility *_facebookUtil;
     NSDictionary *_properties;
-    NSString *_caption, *_description, *_textDesc, *_name, *_appURL, *_imgURL, *_imgLink, *_imgPath;
+    NSString *_caption, *_description, *_textDesc, *_name, *_appURL, *_imgURL, *_imgLink;
+    UIImage *_image;
 }
 
 @synthesize expandProperties = _expandProperties;
 
 - (id)initWithFacebookUtil:(CLSFBUtility *)fb
-                   caption:(NSString *)caption 
+                   caption:(NSString *)caption
                description:(NSString *)desc
            textDescription:(NSString *)txt
                       name:(NSString *)name
                 properties:(NSDictionary *)props
                     appURL:(NSString *)appURL
-                 imagePath:(NSString *)path
+                     image:(UIImage *)image
                   imageURL:(NSString *)img
                  imageLink:(NSString *)imgURL
 {
@@ -39,7 +40,7 @@
         _appURL = [appURL copy];
         _imgURL = [img copy];
         _imgLink = [imgURL copy];
-        _imgPath = [path copy];
+        _image = [image copy];
     }
     return self;
 }
@@ -54,13 +55,13 @@
                 value = [value objectForKey:@"text"];
             }
             if (value)
-                [nativeDesc appendString:[NSString stringWithFormat:@"%@: %@\n",key,value]];
+            [nativeDesc appendString:[NSString stringWithFormat:@"%@: %@\n",key,value]];
         }
     }
     BOOL nativeSuccess = [FBDialogs presentOSIntegratedShareDialogModallyFrom:vc
                                                                   initialText:nativeDesc
-                                                                        image:(_imgPath ? [UIImage imageNamed:_imgPath] : nil)
-                                                                          url:[NSURL URLWithString:_appURL]
+                                                                        image:_image
+                                                                          url:(_appURL ? [NSURL URLWithString:_appURL] : nil)
                                                                       handler:^(FBOSIntegratedShareDialogResult result, NSError *error) {
                                                                           // Only show the error if it is not due to the dialog
                                                                           // not being supported, i.e. code = 7, otherwise ignore
@@ -83,22 +84,20 @@
                                                                           }
                                                                           
                                                                       }];
-
+    
     if (!nativeSuccess) {
-        NSError *error;
-
+        NSError *error = nil;
+        
         //  Send a post to the feed for the user with the Graph API
-        NSArray *actionLinks = [NSArray arrayWithObject:[NSDictionary dictionaryWithObjectsAndKeys:
-                                                         @"Get The App!", @"name",
-                                                         _appURL, @"link",
-                                                         nil
-                                                         ]];
-        NSData *actionJSON = [NSJSONSerialization dataWithJSONObject:actionLinks
+        NSArray *actionLinks = @[@{ @"name": @"Get The App!",
+                                    @"link": _appURL}];
+        NSData *actionData = [NSJSONSerialization dataWithJSONObject:actionLinks
                                                              options:0
                                                                error:&error];
+        NSString *actionJSON = [[NSString alloc] initWithData:actionData encoding:NSUTF8StringEncoding];
         NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                        NSLocalizedString(@"Care to comment?", @"Facebook user message prompt"), @"message",
-                                       [NSString stringWithUTF8String:actionJSON.bytes], @"actions",
+                                       actionJSON, @"actions",
                                        _imgURL, @"picture",
                                        _name, @"name",
                                        _caption, @"caption",
@@ -106,10 +105,14 @@
                                        _imgLink ? _imgLink : _appURL, @"link",
                                        nil];
         if (_properties) { // Does this even work anymore?
-            [params setObject:[NSString stringWithUTF8String:[NSJSONSerialization dataWithJSONObject:_properties
-                                                                                             options:0
-                                                                                               error:&error].bytes]
-                       forKey:@"properties"];
+            NSData *json = [NSJSONSerialization dataWithJSONObject:_properties
+                                                           options:0
+                                                             error:&error];
+            if (json) {
+                params[@"properties"] = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+            } else{
+                NSLog(@"Error enconding JSON properties: %@ (%@)", _properties, error);
+            }
         }
         
         //NSLog(@"Story params: %@", [jsonWriter stringWithObject:params]);
@@ -117,16 +120,18 @@
                                                parameters:params
                                                   handler:^(FBWebDialogResult result, NSURL *resultURL, NSError *error) {
                                                       if (result == FBWebDialogResultDialogCompleted) {
-                                                          if ([_facebookUtil.delegate respondsToSelector:@selector(publishedToFeed)])
-                                                              [_facebookUtil.delegate publishedToFeed];
+                                                          NSRange err = [resultURL.query rangeOfString:@"error_code"];
+                                                          if (err.location == NSNotFound &&
+                                                              [_facebookUtil.delegate respondsToSelector:@selector(publishedToFeed)])
+                                                          [_facebookUtil.delegate publishedToFeed];
                                                       }
                                                       if (error) {
                                                           if (error.fberrorShouldNotifyUser) {
                                                               [[[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Facebook Error",@"Alert title")
-                                                                                                              message:error.fberrorUserMessage
-                                                                                                             delegate:nil
-                                                                                                    cancelButtonTitle:NSLocalizedString(@"OK",@"Alert button")
-                                                                                                    otherButtonTitles:nil] show];
+                                                                                          message:error.fberrorUserMessage
+                                                                                         delegate:nil
+                                                                                cancelButtonTitle:NSLocalizedString(@"OK",@"Alert button")
+                                                                                otherButtonTitles:nil] show];
                                                           } else if (error.fberrorCategory != FBErrorCategoryUserCancelled) {
                                                               NSLog(@"Feed Dialog Error: %@", error);
                                                           }

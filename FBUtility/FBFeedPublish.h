@@ -20,7 +20,7 @@
                       name:(NSString *)name
                 properties:(NSDictionary *)props
                     appURL:(NSString *)appURL
-                 imagePath:(NSString *)path
+                     image:(UIImage *)image
                   imageURL:(NSString *)img
                  imageLink:(NSString *)imgURL;
 

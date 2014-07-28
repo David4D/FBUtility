@@ -61,6 +61,8 @@ extern NSString *const FBSessionStateChangedNotification;
 
 // Init with default Facebook in App Bundle
 - (id)initWithNamespace:(NSString *)ns delegate:(id<CLSFBUtilityDelegate>)delegate;
+- (id)initWithClientToken:(NSString *)token namespace:(NSString *)ns delegate:(id<CLSFBUtilityDelegate>)delegate;
+
 
 // Returns the target_url passed from FB if available, or nil
 - (NSString *)getTargetURL:(NSURL *)url;
@@ -82,6 +84,7 @@ extern NSString *const FBSessionStateChangedNotification;
 - (void)publishUnlike:(NSString *)likeID;
 
 // Game-specific actions to be published
+- (void)doWithPermission:(NSString *)permission toDo:(void (^)(void))handler;
 - (void)fetchAchievementsAndThen:(void (^)(NSSet *achievements))handler;
 // Returns YES if the achievement was already submitted
 - (BOOL)publishAchievement:(NSString *)achievement;
@@ -111,7 +114,7 @@ extern NSString *const FBSessionStateChangedNotification;
                       properties:(NSDictionary *)props
                 expandProperties:(BOOL)expand
                           appURL:(NSString *)appURL
-                       imagePath:(NSString *)imgPath
+                           image:(UIImage *)image
                         imageURL:(NSString *)img
                        imageLink:(NSString *)imgURL
                             from:(UIViewController *)vc;
